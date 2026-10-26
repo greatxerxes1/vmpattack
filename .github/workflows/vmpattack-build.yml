@@ -1,7 +1,11 @@
 name: Build VMPAttack Windows EXE
 
 on:
-  workflow_dispatch: # امکان اجرای دستی با دکمه  در تب Actions
+  push:
+    branches: [ "master", "main" ] # به محض ذخیره شدن، بیلد خودکار شروع می‌شود
+  pull_request:
+    branches: [ "master", "main" ]
+  workflow_dispatch: # دکمه دستی هم همچنان باقی می‌ماند
 
 jobs:
   build:
@@ -11,7 +15,7 @@ jobs:
     - name: Checkout Repository
       uses: actions/checkout@v4
       with:
-        submodules: recursive # دانلود زیرمجموعه‌ها در صورت وجود
+        submodules: recursive
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
@@ -23,7 +27,6 @@ jobs:
 
     - name: Install vcpkg Dependencies
       run: |
-        # نصب مستقیم نیازمندی‌های پایه از طریق vcpkg بومی ویندوز
         vcpkg install capstone:x64-windows
         vcpkg install keystone:x64-windows
 
@@ -41,7 +44,6 @@ jobs:
       shell: pwsh
       run: |
         New-Item -ItemType Directory -Force -Path out-artifacts
-        # جستجو و انتقال فایل exe ساخته شده به پوشه خروجی
         Get-ChildItem -Path build -Filter "*.exe" -Recurse | Copy-Item -Destination out-artifacts/
         Get-ChildItem -Path build -Filter "*.dll" -Recurse | Copy-Item -Destination out-artifacts/
 
