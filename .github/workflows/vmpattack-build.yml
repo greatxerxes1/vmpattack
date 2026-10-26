@@ -1,7 +1,7 @@
 name: Build VMPAttack EXE
 
 on:
-  workflow_dispatch: # به شما اجازه می‌دهد هر زمان خواستید دستی بیلد را شروع کنید
+  workflow_dispatch:
 
 jobs:
   build:
@@ -11,21 +11,32 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        submodules: recursive # اگر پروژه ساب‌ماژول گیت داشته باشد دانلود می‌شود
+        submodules: recursive
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
+    - name: Setup vcpkg
+      run: |
+        vcpkg integrate install
+
+    - name: Install Dependencies via vcpkg
+      run: |
+        vcpkg install capstone:x64-windows
+        vcpkg install keystone:x64-windows
 
     - name: Configure CMake
-      run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      run: |
+        cmake -B build -S . `
+          -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
 
     - name: Build Project
       run: cmake --build build --config Release
 
-    - name: Upload VMPAttack EXE
+    - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: VMPAttack-Windows-EXE
         path: |
           build/Release/*.exe
           build/*.exe
+          build/VMPAttack/Release/*.exe
+          build/VMPAttack/*.exe
