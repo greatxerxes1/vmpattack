@@ -1,4 +1,4 @@
-name: Build VMPAttack EXE
+name: Build VMPAttack EXE (Final Fix)
 
 on:
   push:
@@ -15,6 +15,16 @@ jobs:
       with:
         submodules: recursive
 
+    - name: Cache vcpkg dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          C:/vcpkg/installed
+          C:/vcpkg/downloads
+        key: ${{ runner.os }}-vcpkg-${{ hashFiles('.github/workflows/build.yml') }}
+        restore-keys: |
+          ${{ runner.os }}-vcpkg-
+
     - name: Setup vcpkg
       run: |
         vcpkg integrate install
@@ -24,12 +34,11 @@ jobs:
         vcpkg install capstone:x64-windows
         vcpkg install keystone:x64-windows
 
-    - name: Configure CMake
+    - name: Configure CMake with Forced C++20
       run: |
         cmake -B build -S . `
           -DCMAKE_BUILD_TYPE=Release `
-          -DCMAKE_CXX_STANDARD=20 `
-          -DCMAKE_CXX_STANDARD_REQUIRED=ON `
+          -DCMAKE_CXX_FLAGS="/std:c++20 /EHsc" `
           -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
 
     - name: Build Project
