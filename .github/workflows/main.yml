@@ -1,7 +1,7 @@
 name: Build VMPAttack Windows EXE
 
 on:
-  workflow_dispatch: # امکان اجرای دستی با دکمه در تب Actions
+  workflow_dispatch: # امکان اجرای دستی با دکمه  در تب Actions
 
 jobs:
   build:
