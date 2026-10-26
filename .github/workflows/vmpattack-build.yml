@@ -1,7 +1,10 @@
 name: Build VMPAttack EXE
 
 on:
+  push:
+    branches: [ "master", "main" ] # به محض ذخیره یا پوش شدن کد، بیلد استارت می‌خورد
   workflow_dispatch:
+
 
 jobs:
   build:
