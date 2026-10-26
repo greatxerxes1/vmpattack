@@ -1,0 +1,52 @@
+name: Build VMPAttack Windows EXE
+
+on:
+  workflow_dispatch: # امکان اجرای دستی با دکمه در تب Actions
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive # دانلود زیرمجموعه‌ها در صورت وجود
+
+    - name: Add MSBuild to PATH
+      uses: microsoft/setup-msbuild@v2
+
+    - name: Set up CMake
+      uses: jwlawson/actions-setup-cmake@v2
+      with:
+        cmake-version: '3.25.x'
+
+    - name: Install vcpkg Dependencies
+      run: |
+        # نصب مستقیم نیازمندی‌های پایه از طریق vcpkg بومی ویندوز
+        vcpkg install capstone:x64-windows
+        vcpkg install keystone:x64-windows
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -S . `
+          -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+
+    - name: Build Project
+      run: |
+        cmake --build build --config Release
+
+    - name: Check and Collect Compiled Artifacts
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path out-artifacts
+        # جستجو و انتقال فایل exe ساخته شده به پوشه خروجی
+        Get-ChildItem -Path build -Filter "*.exe" -Recurse | Copy-Item -Destination out-artifacts/
+        Get-ChildItem -Path build -Filter "*.dll" -Recurse | Copy-Item -Destination out-artifacts/
+
+    - name: Upload VMPAttack EXE
+      uses: actions/upload-artifact@v4
+      with:
+        name: vmpattack-windows-x64
+        path: out-artifacts/
