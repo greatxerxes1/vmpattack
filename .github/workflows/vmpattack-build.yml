@@ -2,9 +2,8 @@ name: Build VMPAttack EXE
 
 on:
   push:
-    branches: [ "master", "main" ] # به محض ذخیره یا پوش شدن کد، بیلد استارت می‌خورد
+    branches: [ "master", "main" ]
   workflow_dispatch:
-
 
 jobs:
   build:
@@ -29,6 +28,8 @@ jobs:
       run: |
         cmake -B build -S . `
           -DCMAKE_BUILD_TYPE=Release `
+          -DCMAKE_CXX_STANDARD=20 `
+          -DCMAKE_CXX_STANDARD_REQUIRED=ON `
           -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
 
     - name: Build Project
