@@ -20,7 +20,7 @@ jobs:
     - name: Install Ninja (Windows)
       run: choco install ninja -y
 
-    - name: Enable Developer Command Prompt (Fix Compiler Error)
+    - name: Enable Developer Command Prompt
       uses: ilammy/msvc-dev-cmd@v1
 
     - name: Install vcpkg Dependencies
@@ -28,14 +28,13 @@ jobs:
         vcpkg install capstone:x64-windows
         vcpkg install keystone:x64-windows
 
-    - name: Configure CMake with Ninja & vcpkg (Override CXX Legacy Code Constraints)
+    - name: Configure CMake
       run: |
         cmake -S . -B build -G Ninja `
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
           -DVTIL_BUILD_TESTS=OFF `
-          -DCMAKE_CXX_FLAGS="/wd4005 /wd4003 /wd4996 /WX- /w /permissive-" `
-          -DCMAKE_C_FLAGS="/wd4005 /wd4003 /wd4996 /WX- /w" `
-          -DCMAKE_EXE_LINKER_FLAGS="/force:multiple" `
+          -DCMAKE_CXX_FLAGS="/wd4005 /wd4003 /wd4996 /WX-" `
+          -DCMAKE_C_FLAGS="/wd4005 /wd4003 /wd4996 /WX-" `
           -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
 
