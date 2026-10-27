@@ -10,6 +10,8 @@ jobs:
     env:
       BUILD_TYPE: Release
       BUILD_PARALLEL: 2
+      # Instruct vcpkg to use GitHub Actions caching backend
+      VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
 
     steps:
     - name: Checkout
@@ -17,13 +19,28 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Install Ninja (Windows)
-      run: choco install ninja -y
+    - name: Export GitHub Actions Cache Environment (For vcpkg)
+      uses: actions/github-script@v7
+      with:
+        script: |
+          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
+          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+    - name: Install Ninja & ccache (Windows)
+      run: choco install ninja ccache -y
+
+    - name: Setup Compiler Cache (ccache)
+      uses: actions/cache@v4
+      with:
+        path: AppData/Local/ccache
+        key: ${{ runner.os }}-ccache-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-ccache-
 
     - name: Enable Developer Command Prompt
       uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Install vcpkg Dependencies
+    - name: Install vcpkg Dependencies (Cached Automatically via GitHub Actions Backend)
       run: |
         vcpkg install capstone:x64-windows
         vcpkg install keystone:x64-windows
@@ -35,6 +52,8 @@ jobs:
           -DVTIL_BUILD_TESTS=OFF `
           -DCMAKE_CXX_FLAGS="/wd4005 /wd4003 /wd4996 /WX-" `
           -DCMAKE_C_FLAGS="/wd4005 /wd4003 /wd4996 /WX-" `
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache `
           -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
           -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
 
