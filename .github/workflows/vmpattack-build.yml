@@ -1,4 +1,4 @@
-name: Build VMPAttack (Official Native Build)
+name: Build VMPAttack (Fixed CMake Syntax)
 
 on:
   push:
@@ -15,16 +15,12 @@ jobs:
       with:
         submodules: recursive
 
-    # استفاده از اکشن رسمی مایکروسافت برای اجرای بیلد بدون ابزارهای واسطه
     - name: Run CMake Config & Build
       uses: threeal/cmake-action@v1.3.0
       with:
         source-dir: .
         build-dir: build
-        config-type: Release
-        options: |
-          CMAKE_CXX_STANDARD=20
-          CMAKE_CXX_STANDARD_REQUIRED=ON
+        options: -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
 
     - name: Upload Finished EXE
       uses: actions/upload-artifact@v4
