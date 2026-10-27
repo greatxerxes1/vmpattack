@@ -1,55 +1,57 @@
-name: Build VMPAttack EXE (Final Fix)
+name: CMake Windows Build
 
-on:
-  push:
-    branches: [ "master", "main" ]
-  workflow_dispatch:
+on: [push, pull_request, workflow_dispatch]
 
 jobs:
   build:
-    runs-on: windows-latest
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
+    runs-on: windows-2022
+
+    env:
+      BUILD_TYPE: Release
+      BUILD_PARALLEL: 2
 
     steps:
-    - name: Checkout repository
+    - name: Checkout
       uses: actions/checkout@v4
       with:
         submodules: recursive
 
-    - name: Cache vcpkg dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          C:/vcpkg/installed
-          C:/vcpkg/downloads
-        key: ${{ runner.os }}-vcpkg-${{ hashFiles('.github/workflows/build.yml') }}
-        restore-keys: |
-          ${{ runner.os }}-vcpkg-
+    - name: Install Ninja (Windows)
+      run: choco install ninja -y
 
-    - name: Setup vcpkg
-      run: |
-        vcpkg integrate install
+    - name: Enable Developer Command Prompt (Fix Compiler Error)
+      uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Install Dependencies via vcpkg
+    - name: Install vcpkg Dependencies
       run: |
         vcpkg install capstone:x64-windows
         vcpkg install keystone:x64-windows
 
-    - name: Configure CMake with Forced C++20
+    - name: Configure CMake with Ninja & vcpkg (Override CXX Legacy Code Constraints)
       run: |
-        cmake -B build -S . `
-          -DCMAKE_BUILD_TYPE=Release `
-          -DCMAKE_CXX_FLAGS="/std:c++20 /EHsc" `
-          -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+        cmake -S . -B build -G Ninja `
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+          -DVTIL_BUILD_TESTS=OFF `
+          -DCMAKE_CXX_FLAGS="/wd4005 /wd4003 /wd4996 /WX- /w /permissive-" `
+          -DCMAKE_C_FLAGS="/wd4005 /wd4003 /wd4996 /WX- /w" `
+          -DCMAKE_EXE_LINKER_FLAGS="/force:multiple" `
+          -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
+          -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
 
-    - name: Build Project
-      run: cmake --build build --config Release
+    - name: Build
+      run: |
+        cmake --build build --config ${{ env.BUILD_TYPE }} --parallel ${{ env.BUILD_PARALLEL }} --verbose
 
-    - name: Upload Artifacts
+    - name: Check and Collect Compiled Artifacts
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path out-artifacts
+        Get-ChildItem -Path build -Filter "*.exe" -Recurse | Copy-Item -Destination out-artifacts/
+        Get-ChildItem -Path build -Filter "*.dll" -Recurse | Copy-Item -Destination out-artifacts/
+
+    - name: Upload VMPAttack EXE
       uses: actions/upload-artifact@v4
       with:
-        name: VMPAttack-Windows-EXE
-        path: |
-          build/Release/*.exe
-          build/*.exe
-          build/VMPAttack/Release/*.exe
-          build/VMPAttack/*.exe
+        name: vmpattack-windows-ready
+        path: out-artifacts/
