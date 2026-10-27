@@ -1,4 +1,4 @@
-name: Build VMPAttack (Fixed CMake Syntax)
+name: Build VMPAttack (Direct Command Line)
 
 on:
   push:
@@ -15,12 +15,13 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Run CMake Config & Build
-      uses: threeal/cmake-action@v1.3.0
-      with:
-        source-dir: .
-        build-dir: build
-        options: -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+    - name: Configure CMake Direct
+      shell: cmd
+      run: cmake -B build -S . -DCMAKE_CXX_STANDARD=20 -DCMAKE_CXX_STANDARD_REQUIRED=ON
+
+    - name: Build Project Direct
+      shell: cmd
+      run: cmake --build build --config Release
 
     - name: Upload Finished EXE
       uses: actions/upload-artifact@v4
