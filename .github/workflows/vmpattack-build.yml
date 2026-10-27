@@ -1,75 +1,57 @@
-name: CMake Windows Build
+name: Build VMPAttack EXE (MSBuild Engine)
 
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches: [ "master", "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
-    runs-on: windows-2022
-
-    env:
-      BUILD_TYPE: Release
-      BUILD_PARALLEL: 2
-      # Instruct vcpkg to use GitHub Actions caching backend
-      VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+    runs-on: windows-latest
 
     steps:
-    - name: Checkout
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
         submodules: recursive
 
-    - name: Export GitHub Actions Cache Environment (For vcpkg)
-      uses: actions/github-script@v7
-      with:
-        script: |
-          core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
-          core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
-
-    - name: Install Ninja & ccache (Windows)
-      run: choco install ninja ccache -y
-
-    - name: Setup Compiler Cache (ccache)
+    - name: Cache vcpkg dependencies
       uses: actions/cache@v4
       with:
-        path: AppData/Local/ccache
-        key: ${{ runner.os }}-ccache-${{ github.sha }}
+        path: |
+          C:/vcpkg/installed
+          C:/vcpkg/downloads
+        key: ${{ runner.os }}-vcpkg-${{ hashFiles('.github/workflows/build.yml') }}
         restore-keys: |
-          ${{ runner.os }}-ccache-
+          ${{ runner.os }}-vcpkg-
 
-    - name: Enable Developer Command Prompt
-      uses: ilammy/msvc-dev-cmd@v1
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
 
-    - name: Install vcpkg Dependencies (Cached Automatically via GitHub Actions Backend)
+    - name: Setup vcpkg
+      run: |
+        vcpkg integrate install
+
+    - name: Install Dependencies via vcpkg
       run: |
         vcpkg install capstone:x64-windows
         vcpkg install keystone:x64-windows
 
-    - name: Configure CMake
+    - name: Configure CMake using VS Generator
       run: |
-        cmake -S . -B build -G Ninja `
-          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-          -DVTIL_BUILD_TESTS=OFF `
-          -DCMAKE_CXX_FLAGS="/wd4005 /wd4003 /wd4996 /WX-" `
-          -DCMAKE_C_FLAGS="/wd4005 /wd4003 /wd4996 /WX-" `
-          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache `
-          -DCMAKE_C_COMPILER_LAUNCHER=ccache `
-          -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
-          -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON
+        cmake -B build -S . -G "Visual Studio 17 2022" -A x64 `
+          -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
 
-    - name: Build
+    - name: Build Project with MSBuild
       run: |
-        cmake --build build --config ${{ env.BUILD_TYPE }} --parallel ${{ env.BUILD_PARALLEL }} --verbose
+        msbuild build/VMPAttack.sln /p:Configuration=Release /p:Platform=x64 /p:LanguageStandard=stdcpp20
 
-    - name: Check and Collect Compiled Artifacts
-      shell: pwsh
-      run: |
-        New-Item -ItemType Directory -Force -Path out-artifacts
-        Get-ChildItem -Path build -Filter "*.exe" -Recurse | Copy-Item -Destination out-artifacts/
-        Get-ChildItem -Path build -Filter "*.dll" -Recurse | Copy-Item -Destination out-artifacts/
-
-    - name: Upload VMPAttack EXE
+    - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: vmpattack-windows-ready
-        path: out-artifacts/
+        name: VMPAttack-Windows-EXE
+        path: |
+          build/Release/*.exe
+          build/VMPAttack/Release/*.exe
+          VMPAttack/Release/*.exe
+          Release/*.exe
