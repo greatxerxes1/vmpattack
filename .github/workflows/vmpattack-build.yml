@@ -1,4 +1,4 @@
-name: Build VMPAttack EXE (MSBuild Engine)
+name: Build VMPAttack (Direct Solution Build)
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2022 # استفاده از ویندوز ۲۰۲۲ که ویژوال استودیو ۲۰۲۲ را به صورت پیش‌فرض دارد
 
     steps:
     - name: Checkout repository
@@ -15,43 +15,27 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Cache vcpkg dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          C:/vcpkg/installed
-          C:/vcpkg/downloads
-        key: ${{ runner.os }}-vcpkg-${{ hashFiles('.github/workflows/build.yml') }}
-        restore-keys: |
-          ${{ runner.os }}-vcpkg-
-
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
-    - name: Setup vcpkg
-      run: |
-        vcpkg integrate install
+    - name: Setup NuGet
+      uses: nuget/setup-nuget@v2
 
-    - name: Install Dependencies via vcpkg
+    # نصب سریع پیش‌نیازها از طریق نیوگت (بدون اتلاف وقت و بدون نیاز به کامپایل سورس کتابخانه‌ها)
+    - name: Install Capstone and Keystone via NuGet
       run: |
-        vcpkg install capstone:x64-windows
-        vcpkg install keystone:x64-windows
+        nuget install capstone -Version 4.0.2 -OutputDirectory packages
+        nuget install keystone -Version 0.9.2 -OutputDirectory packages
 
-    - name: Configure CMake using VS Generator
+    # کامپایل مستقیم فایل پروژه ویژوال استودیو با استاندارد اجباری C++20
+    - name: Build Solution directly with MSBuild
       run: |
-        cmake -B build -S . -G "Visual Studio 17 2022" -A x64 `
-          -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+        msbuild VMPAttack.sln /p:Configuration=Release /p:Platform=x64 /p:AdditionalOptions="/std:c++20"
 
-    - name: Build Project with MSBuild
-      run: |
-        msbuild build/VMPAttack.sln /p:Configuration=Release /p:Platform=x64 /p:LanguageStandard=stdcpp20
-
-    - name: Upload Artifacts
+    - name: Upload Finished EXE
       uses: actions/upload-artifact@v4
       with:
         name: VMPAttack-Windows-EXE
         path: |
-          build/Release/*.exe
-          build/VMPAttack/Release/*.exe
-          VMPAttack/Release/*.exe
-          Release/*.exe
+          **/Release/*.exe
+          **/*.exe
