@@ -1,4 +1,4 @@
-name: Build VMPAttack (Pure MSBuild & Native Libs)
+name: Build VMPAttack (Official Native Build)
 
 on:
   push:
@@ -15,37 +15,22 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
-
-    # دانلود مستقیم و نیتیو کتابخانه‌های پیش‌نیاز بدون نیاز به مدیر پکیج‌ها
-    - name: Download and Setup Keystone and Capstone
-      shell: powershell
-      run: |
-        # ساخت پوشه برای کتابخانه‌ها
-        New-Item -ItemType Directory -Force -Path ".\deps"
-        
-        # دانلود نسخه پیش‌کامپایل شده Capstone
-        Invoke-WebRequest -Uri "https://github.com" -OutFile "capstone.zip"
-        Expand-Archive -Path "capstone.zip" -DestinationPath ".\deps\capstone"
-        
-        # دانلود نسخه پیش‌کامپایل شده Keystone
-        Invoke-WebRequest -Uri "https://github.com" -OutFile "keystone.zip"
-        Expand-Archive -Path "keystone.zip" -DestinationPath ".\deps\keystone"
-
-    # کامپایل مستقیم فایل راهکار با تزریق مسیرهای کتابخانه‌های دانلود شده و اجبار به C++20
-    - name: Compile Solution
-      run: |
-        msbuild VMPAttack.sln /p:Configuration=Release /p:Platform=x64 `
-          /p:AdditionalIncludeDirectories="${{ github.workspace }}\deps\capstone\include;${{ github.workspace }}\deps\keystone\include" `
-          /p:AdditionalLibraryDirectories="${{ github.workspace }}\deps\capstone;${{ github.workspace }}\deps\keystone" `
-          /p:LanguageStandard=stdcpp20 `
-          /p:ConformanceMode=true
+    # استفاده از اکشن رسمی مایکروسافت برای اجرای بیلد بدون ابزارهای واسطه
+    - name: Run CMake Config & Build
+      uses: threeal/cmake-action@v1.3.0
+      with:
+        source-dir: .
+        build-dir: build
+        config-type: Release
+        options: |
+          CMAKE_CXX_STANDARD=20
+          CMAKE_CXX_STANDARD_REQUIRED=ON
 
     - name: Upload Finished EXE
       uses: actions/upload-artifact@v4
       with:
         name: VMPAttack-Windows-EXE
         path: |
-          **/Release/*.exe
-          **/*.exe
+          build/Release/*.exe
+          build/VMPAttack/Release/*.exe
+          build/**/*.exe
