@@ -1,4 +1,4 @@
-name: Build VMPAttack (Direct Solution Build)
+name: Build VMPAttack (Pure MSBuild & Native Libs)
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-2022 # استفاده از ویندوز ۲۰۲۲ که ویژوال استودیو ۲۰۲۲ را به صورت پیش‌فرض دارد
+    runs-on: windows-2022
 
     steps:
     - name: Checkout repository
@@ -18,19 +18,29 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
 
-    - name: Setup NuGet
-      uses: nuget/setup-nuget@v2
-
-    # نصب سریع پیش‌نیازها از طریق نیوگت (بدون اتلاف وقت و بدون نیاز به کامپایل سورس کتابخانه‌ها)
-    - name: Install Capstone and Keystone via NuGet
+    # دانلود مستقیم و نیتیو کتابخانه‌های پیش‌نیاز بدون نیاز به مدیر پکیج‌ها
+    - name: Download and Setup Keystone and Capstone
+      shell: powershell
       run: |
-        nuget install capstone -Version 4.0.2 -OutputDirectory packages
-        nuget install keystone -Version 0.9.2 -OutputDirectory packages
+        # ساخت پوشه برای کتابخانه‌ها
+        New-Item -ItemType Directory -Force -Path ".\deps"
+        
+        # دانلود نسخه پیش‌کامپایل شده Capstone
+        Invoke-WebRequest -Uri "https://github.com" -OutFile "capstone.zip"
+        Expand-Archive -Path "capstone.zip" -DestinationPath ".\deps\capstone"
+        
+        # دانلود نسخه پیش‌کامپایل شده Keystone
+        Invoke-WebRequest -Uri "https://github.com" -OutFile "keystone.zip"
+        Expand-Archive -Path "keystone.zip" -DestinationPath ".\deps\keystone"
 
-    # کامپایل مستقیم فایل پروژه ویژوال استودیو با استاندارد اجباری C++20
-    - name: Build Solution directly with MSBuild
+    # کامپایل مستقیم فایل راهکار با تزریق مسیرهای کتابخانه‌های دانلود شده و اجبار به C++20
+    - name: Compile Solution
       run: |
-        msbuild VMPAttack.sln /p:Configuration=Release /p:Platform=x64 /p:AdditionalOptions="/std:c++20"
+        msbuild VMPAttack.sln /p:Configuration=Release /p:Platform=x64 `
+          /p:AdditionalIncludeDirectories="${{ github.workspace }}\deps\capstone\include;${{ github.workspace }}\deps\keystone\include" `
+          /p:AdditionalLibraryDirectories="${{ github.workspace }}\deps\capstone;${{ github.workspace }}\deps\keystone" `
+          /p:LanguageStandard=stdcpp20 `
+          /p:ConformanceMode=true
 
     - name: Upload Finished EXE
       uses: actions/upload-artifact@v4
